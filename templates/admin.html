@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #06070d; color: white; }
+        h1, h2 { color: white; }
+        form { margin-bottom: 20px; padding: 15px; border: 1px solid #222; border-radius: 5px; background-color: #0f0f1a; color: white; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: white; }
+        input[type="text"], input[type="number"], input[type="datetime-local"] { width: 300px; padding: 8px; margin-bottom: 10px; border: 1px solid #555; border-radius: 4px; background-color: #333; color: white; }
+        button { padding: 15px 30px; border: none; border-radius: 4px; cursor: pointer; color: white; }
+        button.add { background-color: #3366FF; border-radius: 25px; }
+        button.activate { background-color: #3366FF; }
+        button.deactivate { background-color: #850000; }
+        button.reset-ip { background-color: #ff9800; }
+        button.delete-expired { background-color: #4a0086; }
+        .response { margin-top: 10px; padding: 10px; border-radius: 4px; }
+        .response.success { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
+        .response.error { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #333; padding: 8px; text-align: left; background-color: #2a2a2a; color: white; }
+        th { background-color: #222; }
+        .btn-toggle { background-color: #3366FF; color: white; }
+        .btn-delete { background-color: #850000; color: white; }
+        .status-active { color: rgb(0, 160, 0); font-weight: bold; }
+        .status-inactive { color: rgb(107, 0, 0); font-weight: bold; }
+        .status-expired { color: darkorange; font-weight: bold; }
+        .copy-on-click { cursor: pointer; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+        #licenseTable { width: 100%; margin-left: auto; margin-right: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+    <h1>Admin Dashboard</h1>
+
+    <div id="response" class="response"></div>
+
+    <h2>Generate and Add New License Key</h2>
+    <form id="addKeyForm">
+        <label for="numKeysInput">Number of Keys to Generate:</label>
+        <input type="number" id="numKeysInput" name="num_keys" value="1" min="1" required>
+        <br><br>
+        <label for="expirationDateInput">Expiration Date (Optional):</label>
+        <input type="datetime-local" id="expirationDateInput" name="expiration_date">
+        <br><br>
+        <input type="checkbox" id="neverExpiresCheckbox">
+        <label for="neverExpiresCheckbox">Never Expires</label>
+        <br><br>
+        <button type="submit" class="add">&#x2295; Create A License</button>
+    </form>
+
+    <h2>Toggle License Key Status</h2>
+    <form id="toggleStatusForm">
+        <label for="licenseKeyInput">License Key:</label>
+        <input type="text" id="licenseKeyInput" name="license_key" required>
+        <button type="submit" class="activate" data-action="activate">Activate Key</button>
+        <button type="submit" class="deactivate" data-action="deactivate">Deactivate Key</button>
+    </form>
+
+    <h2>Manage Expired Licenses</h2>
+    <form id="deleteExpiredForm">
+        <button type="submit" class="delete-expired">Delete All Expired Keys</button>
+    </form>
+
+    <h2>Existing Licenses</h2>
+    <table id="licenseTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>License Key</th>
+                <th>IP Address</th>
+                <th>Status</th>
+                <th>Expiration Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Licenses will be loaded here by JavaScript -->
+        </tbody>
+    </table>
+
+    <script>
+        const API_BASE_URL = "http://127.0.0.1:5000";
+        const responseDiv = document.getElementById('response');
+
+        async function fetchLicenses() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/licenses`);
+                const licensesData = await response.json();
+                displayLicenses(licensesData);
+            } catch (error) {
+                console.error('Error fetching licenses:', error);
+                alert('Error fetching licenses. Make sure the Flask API is running.');
+            }
+        }
+
+        function displayLicenses(licenses) {
+            const tableBody = document.querySelector('#licenseTable tbody');
+            tableBody.innerHTML = ''; // Clear existing rows
+
+            licenses.forEach(license => {
+                const row = tableBody.insertRow();
+                row.insertCell().textContent = license.id;
+                
+                const licenseKeyCell = row.insertCell();
+                licenseKeyCell.textContent = license.license_key;
+                licenseKeyCell.className = 'copy-on-click'; // Add class for click event
+                licenseKeyCell.style.cursor = 'pointer'; // Indicate it's clickable
+                licenseKeyCell.title = 'Click to copy'; // Tooltip
+
+                licenseKeyCell.onclick = function() {
+                    navigator.clipboard.writeText(license.license_key).then(() => {
+                        const messageSpan = document.createElement('span');
+                        messageSpan.textContent = ' (คัดลอกแล้ว!)'; // เพิ่มช่องว่างด้านหน้า
+                        messageSpan.style.fontSize = '0.8em';
+                        messageSpan.style.color = '#888';
+                        licenseKeyCell.appendChild(messageSpan);
+
+                        setTimeout(() => {
+                            licenseKeyCell.removeChild(messageSpan);
+                        }, 1500);
+                    }).catch(err => {
+                        console.error('Could not copy text: ', err);
+                        alert('ไม่สามารถคัดลอกได้');
+                    });
+                };
+
+                row.insertCell().textContent = license.ip_address || 'N/A';
+                const statusCell = row.insertCell();
+                statusCell.textContent = license.status;
+                statusCell.className = `status-${license.status}`;
+
+                row.insertCell().textContent = license.expiration_date ? new Date(license.expiration_date).toLocaleString() : 'Never'; // Display expiration date
+
+                const actionsCell = row.insertCell();
+                const toggleButton = document.createElement('button');
+                toggleButton.className = 'btn-toggle';
+                toggleButton.textContent = license.status === 'active' ? 'On' : 'Off';
+                toggleButton.onclick = () => sendRequest('/admin/toggle_key_status', 'POST', { key: license.license_key, action: license.status === 'active' ? 'deactivate' : 'activate' });
+                actionsCell.appendChild(toggleButton);
+
+                const deleteButton = document.createElement('button');
+                deleteButton.className = 'btn-delete';
+                deleteButton.textContent = 'Delete';
+                deleteButton.onclick = () => {
+                    if (confirm(`Are you sure you want to delete license key: ${license.license_key}?`)) {
+                        sendRequest('/admin/delete_key', 'POST', { key: license.license_key });
+                    }
+                };
+                actionsCell.appendChild(deleteButton);
+
+                const resetIpButton = document.createElement('button');
+                resetIpButton.className = 'reset-ip';
+                resetIpButton.textContent = 'Reset IP';
+                resetIpButton.style.marginLeft = '5px'; // Add some margin for spacing
+                resetIpButton.onclick = () => {
+                    if (confirm(`Are you sure you want to reset the IP for license key: ${license.license_key}?`)) {
+                        sendRequest('/admin/reset_ip', 'POST', { key: license.license_key });
+                    }
+                };
+                actionsCell.appendChild(resetIpButton);
+            });
+        }
+
+        async function sendRequest(url, method, body = {}) {
+            responseDiv.className = 'response';
+            responseDiv.innerHTML = 'Processing...';
+            try {
+                const options = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                };
+                if (method === 'POST') {
+                    options.body = JSON.stringify(body);
+                }
+
+                const response = await fetch(url, options);
+                const data = await response.json();
+
+                if (response.ok) {
+                    responseDiv.className = 'response success';
+                    let message = data.message;
+                    if (data.license_key) {
+                        message += ` New Key: ${data.license_key}`;
+                    } else if (data.license_keys) { // For multiple keys generated
+                        message += ` New Keys: ${data.license_keys.join(', ')}`;
+                    }
+                    responseDiv.innerHTML = message;
+                    fetchLicenses(); // Refresh the table after a successful operation
+                } else {
+                    responseDiv.className = 'response error';
+                    responseDiv.innerHTML = `Error: ${data.message || 'Unknown error'}`;
+                }
+            } catch (error) {
+                responseDiv.className = 'response error';
+                responseDiv.innerHTML = `Network Error: ${error.message}`;
+            }
+        }
+
+        document.getElementById('addKeyForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const numKeys = document.getElementById('numKeysInput').value;
+            let expirationDate = document.getElementById('expirationDateInput').value; // Get expiration date
+            const neverExpires = document.getElementById('neverExpiresCheckbox').checked; // Get never expires checkbox state
+
+            if (neverExpires) {
+                expirationDate = null; // Set to null if never expires
+            }
+
+            await sendRequest('/admin/add_key', 'POST', { num_keys: parseInt(numKeys), expiration_date: expirationDate });
+        });
+
+        document.getElementById('neverExpiresCheckbox').addEventListener('change', function() {
+            const expirationDateInput = document.getElementById('expirationDateInput');
+            if (this.checked) {
+                expirationDateInput.value = ''; // Clear value when disabled
+                expirationDateInput.disabled = true;
+            } else {
+                expirationDateInput.disabled = false;
+            }
+        });
+
+        document.getElementById('toggleStatusForm').addEventListener('click', async function(event) {
+            if (event.target.tagName === 'BUTTON') {
+                event.preventDefault();
+                const licenseKey = document.getElementById('licenseKeyInput').value;
+                const action = event.target.dataset.action;
+
+                if (!licenseKey) {
+                    responseDiv.className = 'response error';
+                    responseDiv.innerHTML = 'Please enter a License Key.';
+                    return;
+                }
+
+                await sendRequest('/admin/toggle_key_status', 'POST', { key: licenseKey, action: action });
+            }
+        });
+
+        document.getElementById('deleteExpiredForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            if (confirm('Are you sure you want to delete ALL expired license keys?')) {
+                await sendRequest('/admin/delete_expired_keys', 'POST');
+            }
+        });
+
+        // Initial load
+        fetchLicenses();
+    </script>
+    </div>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add New License Key</title>
+</head>
+<body>
+    <h1>Add New License Key</h1>
+    <form action="/admin/add_key" method="post">
+        <button type="submit">Generate and Add New Key</button>
+    </form>
+    <div id="response"></div>
+
+    <script>
+        document.querySelector('form').addEventListener('submit', async function(event) {
+            event.preventDefault(); // Prevent default form submission
+
+            const responseDiv = document.getElementById('response');
+            responseDiv.innerHTML = 'Generating key...';
+
+            try {
+                // The backend expects a POST to generate a key, no specific data is needed from the form
+                const response = await fetch('/admin/add_key', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json' // Still send as JSON, even if empty body
+                    },
+                    body: JSON.stringify({}) // Send an empty JSON object
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    responseDiv.innerHTML = `<p style="color: green;">Success! New Key: ${data.license_key}</p>`;
+                } else {
+                    responseDiv.innerHTML = `<p style="color: red;">Error: ${data.message || 'Unknown error'}</p>`;
+                }
+            } catch (error) {
+                responseDiv.innerHTML = `<p style="color: red;">Network Error: ${error.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html> 

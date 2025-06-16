@@ -1,0 +1,5 @@
+Flask
+Flask-SQLAlchemy
+APScheduler
+waitress 
+psycopg2-binary 
