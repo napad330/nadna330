@@ -8,6 +8,7 @@ from datetime import datetime # Import datetime
 from apscheduler.schedulers.background import BackgroundScheduler # Import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger # Import IntervalTrigger
 from waitress import serve # Import serve from waitress
+from sqlalchemy import create_engine, MetaData, Table, Column, String, Integer, DateTime # Import SQLAlchemy Core
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
@@ -16,10 +17,27 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:/
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-print("Attempting to create database tables...")
+# --- เพิ่มตรงนี้ (SQLAlchemy Core) ---
+print("Attempting to create database tables using SQLAlchemy Core...")
+engine = create_engine(app.config['SQLALCHEMY_DATABASE_URI'])
+metadata = MetaData()
+
+license_table = Table('license', metadata,
+    Column('id', Integer, primary_key=True),
+    Column('license_key', String(100), unique=True, nullable=False),
+    Column('ip_address', String(200), nullable=False),
+    Column('status', String(20), default='active', nullable=False),
+    Column('expiration_date', DateTime, nullable=True)
+)
+
+metadata.create_all(engine)
+print("Database tables created using SQLAlchemy Core (if they didn't exist).")
+# -------------------------------------
+
+print("Attempting to create database tables using Flask-SQLAlchemy...")
 with app.app_context():
     db.create_all()
-print("Database tables created (if they didn't exist).")
+print("Database tables created using Flask-SQLAlchemy (if they didn't exist).")
 
 class License(db.Model):
     id = db.Column(db.Integer, primary_key=True)
