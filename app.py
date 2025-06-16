@@ -16,6 +16,11 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:/
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
+print("Attempting to create database tables...")
+with app.app_context():
+    db.create_all()
+print("Database tables created (if they didn't exist).")
+
 class License(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     license_key = db.Column(db.String(100), unique=True, nullable=False)
@@ -233,11 +238,6 @@ if __name__ == '__main__':
     # Shut down the scheduler when the app exits
     import atexit
     atexit.register(lambda: scheduler.shutdown())
-
-    print("Attempting to create database tables...")
-    with app.app_context():
-        db.create_all()
-    print("Database tables created (if they didn't exist).")
 
     # Get port from environment variable, default to 5000 if not set
     port = int(os.environ.get('PORT', 5000))
